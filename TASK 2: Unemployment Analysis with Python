@@ -1,0 +1,332 @@
+
+import pandas as pd
+import matplotlib.pyplot as plt
+import os
+
+print("=" * 60)
+print("CODEALPHA TASK 2 - UNEMPLOYMENT ANALYSIS")
+print("=" * 60)
+
+files = [f for f in os.listdir() if f.lower().endswith(".csv")]
+
+if len(files) < 2:
+    print("\nERROR: At least 2 CSV files are required.")
+    exit()
+
+print("\nDatasets found:")
+for i, file in enumerate(files[:2], 1):
+    print(i, "-", file)
+
+df1 = pd.read_csv(files[0])
+df2 = pd.read_csv(files[1])
+
+df1.columns = df1.columns.str.strip()
+df2.columns = df2.columns.str.strip()
+
+print("\nDataset 1:")
+print("File Name:", files[0])
+print("Rows and Columns:", df1.shape)
+print("Columns:", df1.columns.tolist())
+print("\nFirst 5 Rows:")
+print(df1.head())
+
+print("\nDataset 2:")
+print("File Name:", files[1])
+print("Rows and Columns:", df2.shape)
+print("Columns:", df2.columns.tolist())
+print("\nFirst 5 Rows:")
+print(df2.head())
+
+df1 = df1.drop_duplicates()
+df2 = df2.drop_duplicates()
+
+df1 = df1.dropna(how="all")
+df2 = df2.dropna(how="all")
+
+print("\nDataset 1 Missing Values:")
+print(df1.isnull().sum())
+
+print("\nDataset 2 Missing Values:")
+print(df2.isnull().sum())
+
+date_column = "Date"
+unemployment_column = "Estimated Unemployment Rate (%)"
+
+df1[date_column] = pd.to_datetime(
+    df1[date_column],
+    dayfirst=True,
+    errors="coerce"
+)
+
+df2[date_column] = pd.to_datetime(
+    df2[date_column],
+    dayfirst=True,
+    errors="coerce"
+)
+
+df1[unemployment_column] = pd.to_numeric(
+    df1[unemployment_column],
+    errors="coerce"
+)
+
+df2[unemployment_column] = pd.to_numeric(
+    df2[unemployment_column],
+    errors="coerce"
+)
+
+df1 = df1.dropna(
+    subset=[date_column, unemployment_column]
+)
+
+df2 = df2.dropna(
+    subset=[date_column, unemployment_column]
+)
+
+df1 = df1.sort_values(date_column)
+
+print("\nDate column detected:", date_column)
+print("Unemployment column detected:", unemployment_column)
+
+print("\n" + "=" * 60)
+print("DESCRIPTIVE STATISTICS")
+print("=" * 60)
+
+print(
+    df1[
+        [
+            unemployment_column,
+            "Estimated Employed",
+            "Estimated Labour Participation Rate (%)"
+        ]
+    ].describe()
+)
+
+print("\n" + "=" * 60)
+print("UNEMPLOYMENT RATE TREND")
+print("=" * 60)
+
+plt.figure(figsize=(12, 6))
+
+plt.plot(
+    df1[date_column],
+    df1[unemployment_column],
+    marker="o"
+)
+
+plt.title("Unemployment Rate Trend")
+plt.xlabel("Date")
+plt.ylabel("Unemployment Rate (%)")
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+print("\n" + "=" * 60)
+print("COVID-19 IMPACT ANALYSIS")
+print("=" * 60)
+
+covid_data = df1[
+    (df1[date_column] >= "2020-03-01") &
+    (df1[date_column] <= "2020-06-30")
+]
+
+print("\nCOVID-19 Data:")
+print(
+    covid_data[
+        [
+            date_column,
+            unemployment_column,
+            "Estimated Employed"
+        ]
+    ]
+)
+
+covid_average = covid_data[
+    unemployment_column
+].mean()
+
+print(
+    "\nAverage Unemployment Rate during COVID:",
+    round(covid_average, 2),
+    "%"
+)
+
+plt.figure(figsize=(10, 6))
+
+plt.plot(
+    covid_data[date_column],
+    covid_data[unemployment_column],
+    marker="o"
+)
+
+plt.title("COVID-19 Impact on Unemployment Rate")
+plt.xlabel("Date")
+plt.ylabel("Unemployment Rate (%)")
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+print("\n" + "=" * 60)
+print("PRE-COVID VS COVID")
+print("=" * 60)
+
+pre_covid = df1[
+    (df1[date_column] >= "2019-05-01") &
+    (df1[date_column] < "2020-03-01")
+]
+
+pre_average = pre_covid[
+    unemployment_column
+].mean()
+
+change = covid_average - pre_average
+
+print(
+    "Pre-COVID Average:",
+    round(pre_average, 2),
+    "%"
+)
+
+print(
+    "COVID Average:",
+    round(covid_average, 2),
+    "%"
+)
+
+print(
+    "Change:",
+    round(change, 2),
+    "percentage points"
+)
+
+plt.figure(figsize=(8, 5))
+
+plt.bar(
+    ["Pre-COVID", "COVID"],
+    [pre_average, covid_average]
+)
+
+plt.title("Pre-COVID vs COVID Unemployment Rate")
+plt.xlabel("Period")
+plt.ylabel("Average Unemployment Rate (%)")
+plt.tight_layout()
+plt.show()
+
+print("\n" + "=" * 60)
+print("EMPLOYMENT TREND")
+print("=" * 60)
+
+plt.figure(figsize=(12, 6))
+
+plt.plot(
+    df1[date_column],
+    df1["Estimated Employed"],
+    marker="o"
+)
+
+plt.title("Estimated Employment Trend")
+plt.xlabel("Date")
+plt.ylabel("Estimated Employed")
+plt.xticks(rotation=45)
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+print("\n" + "=" * 60)
+print("SEASONAL TREND")
+print("=" * 60)
+
+df1["Month"] = df1[date_column].dt.month
+
+monthly_average = df1.groupby(
+    "Month"
+)[unemployment_column].mean()
+
+print("\nMonthly Average Unemployment Rate:")
+print(monthly_average)
+
+plt.figure(figsize=(10, 6))
+
+plt.plot(
+    monthly_average.index,
+    monthly_average.values,
+    marker="o"
+)
+
+plt.title("Monthly Seasonal Unemployment Trend")
+plt.xlabel("Month")
+plt.ylabel("Average Unemployment Rate (%)")
+plt.xticks(range(1, 13))
+plt.grid(True)
+plt.tight_layout()
+plt.show()
+
+print("\n" + "=" * 60)
+print("HIGHEST UNEMPLOYMENT")
+print("=" * 60)
+
+highest_index = df1[unemployment_column].idxmax()
+
+print(
+    "Highest Rate:",
+    round(
+        df1.loc[highest_index, unemployment_column],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Date:",
+    df1.loc[highest_index, date_column]
+)
+
+print("\n" + "=" * 60)
+print("LOWEST UNEMPLOYMENT")
+print("=" * 60)
+
+lowest_index = df1[unemployment_column].idxmin()
+
+print(
+    "Lowest Rate:",
+    round(
+        df1.loc[lowest_index, unemployment_column],
+        2
+    ),
+    "%"
+)
+
+print(
+    "Date:",
+    df1.loc[lowest_index, date_column]
+)
+
+print("\n" + "=" * 60)
+print("FINAL INSIGHTS")
+print("=" * 60)
+
+print("1. Unemployment rate varies significantly over time.")
+print("2. COVID-19 had a major impact on unemployment.")
+print("3. Employment levels were affected during the pandemic.")
+print("4. Monthly variations indicate possible seasonal patterns.")
+print("5. Skill development can improve employment opportunities.")
+print("6. Government employment support can help during economic crises.")
+
+df1.to_csv(
+    "Cleaned_Unemployment_Dataset1.csv",
+    index=False
+)
+
+df2.to_csv(
+    "Cleaned_Unemployment_Dataset2.csv",
+    index=False
+)
+
+print("\n" + "=" * 60)
+print("TASK 2 COMPLETED SUCCESSFULLY!")
+print("=" * 60)
+
+print("\nCleaned datasets saved successfully.")
+
+input("\nPress Enter to exit...")
