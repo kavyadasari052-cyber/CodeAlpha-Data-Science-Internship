@@ -1,0 +1,197 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.impute import SimpleImputer
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
+
+df = pd.read_csv("car_price_dataset.csv")
+
+print("=" * 60)
+print("CAR PRICE PREDICTION")
+print("=" * 60)
+
+print("\nFirst 5 rows:")
+print(df.head())
+
+print("\nDataset Shape:")
+print(df.shape)
+
+print("\nColumn Names:")
+print(df.columns.tolist())
+
+print("\nMissing Values:")
+print(df.isnull().sum())
+
+print("\nDuplicate Rows:")
+print(df.duplicated().sum())
+
+df = df.drop_duplicates()
+
+print("\nShape after removing duplicates:")
+print(df.shape)
+
+target_column = "Selling_Price"
+
+X = df.drop(columns=[target_column])
+y = df[target_column]
+
+y = pd.to_numeric(y, errors="coerce")
+
+valid_rows = y.notna()
+
+X = X[valid_rows]
+y = y[valid_rows]
+
+numerical_features = X.select_dtypes(
+    include=["int64", "float64", "int32", "float32"]
+).columns.tolist()
+
+categorical_features = X.select_dtypes(
+    include=["object", "str", "category", "bool"]
+).columns.tolist()
+
+print("\nNumerical Features:")
+print(numerical_features)
+
+print("\nCategorical Features:")
+print(categorical_features)
+
+numeric_pipeline = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="median"))
+    ]
+)
+
+categorical_pipeline = Pipeline(
+    steps=[
+        ("imputer", SimpleImputer(strategy="most_frequent")),
+        ("encoder", OneHotEncoder(handle_unknown="ignore"))
+    ]
+)
+
+preprocessor = ColumnTransformer(
+    transformers=[
+        ("numeric", numeric_pipeline, numerical_features),
+        ("categorical", categorical_pipeline, categorical_features)
+    ]
+)
+
+X_train, X_test, y_train, y_test = train_test_split(
+    X,
+    y,
+    test_size=0.20,
+    random_state=42
+)
+
+print("\nTraining Data:", X_train.shape)
+print("Testing Data:", X_test.shape)
+
+model = RandomForestRegressor(
+    n_estimators=300,
+    random_state=42
+)
+
+pipeline = Pipeline(
+    steps=[
+        ("preprocessor", preprocessor),
+        ("model", model)
+    ]
+)
+
+print("\nTraining model...")
+
+pipeline.fit(X_train, y_train)
+
+print("Model training completed!")
+
+y_pred = pipeline.predict(X_test)
+
+mae = mean_absolute_error(y_test, y_pred)
+mse = mean_squared_error(y_test, y_pred)
+rmse = np.sqrt(mse)
+r2 = r2_score(y_test, y_pred)
+
+print("\n" + "=" * 60)
+print("MODEL EVALUATION")
+print("=" * 60)
+
+print(f"Mean Absolute Error (MAE): {mae:.2f}")
+print(f"Mean Squared Error (MSE): {mse:.2f}")
+print(f"Root Mean Squared Error (RMSE): {rmse:.2f}")
+print(f"R2 Score: {r2:.4f}")
+print(f"R2 Score Percentage: {r2 * 100:.2f}%")
+
+results = pd.DataFrame({
+    "Actual Price": y_test.values,
+    "Predicted Price": y_pred
+})
+
+print("\nSample Predictions:")
+print(results.head(10))
+
+plt.figure(figsize=(8, 6))
+
+plt.scatter(
+    y_test,
+    y_pred,
+    alpha=0.7
+)
+
+plt.xlabel("Actual Selling Price")
+plt.ylabel("Predicted Selling Price")
+plt.title("Actual vs Predicted Car Prices")
+
+minimum = min(y_test.min(), y_pred.min())
+maximum = max(y_test.max(), y_pred.max())
+
+plt.plot(
+    [minimum, maximum],
+    [minimum, maximum],
+    linestyle="--"
+)
+
+plt.tight_layout()
+plt.show()
+
+plt.figure(figsize=(8, 6))
+
+plt.plot(
+    y_test.values[:20],
+    marker="o",
+    label="Actual Price"
+)
+
+plt.plot(
+    y_pred[:20],
+    marker="x",
+    label="Predicted Price"
+)
+
+plt.xlabel("Car Index")
+plt.ylabel("Selling Price")
+plt.title("Actual vs Predicted Prices")
+
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+sample_car = X_test.iloc[[0]]
+
+predicted_price = pipeline.predict(sample_car)
+
+print("\n" + "=" * 60)
+print("NEW CAR PRICE PREDICTION")
+print("=" * 60)
+
+print("\nCar Details:")
+print(sample_car.to_string(index=False))
+
+print(
+    f"\nPredicted Selling Price: {predicted_price[0]:.2f} Lakhs"
+)
